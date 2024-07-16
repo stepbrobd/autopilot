@@ -18,12 +18,26 @@ let
 in
 rec {
   /**
+    Generates a list of files in a directory, excluding the ones specified in `excludes`.
+    This is specifically implemented to only use `builtins` functions to avoid circular dependencies.
+
+    # Type: filesList :: path -> [string] -> [string]
+
+    # Example:
+      filesList ./. [ "default.nix" ]
+      => [ "file1.nix" "file2.nix" ... ]
+  */
+  filesList = dir: excludes: builtins.map (f: dir + "/${f}") (builtins.filter
+    (f: !(builtins.elem f excludes))
+    (builtins.attrNames (builtins.readDir dir)));
+
+  /**
     Converts a kebab-case string to a camelCase string.
     https://discourse.nixos.org/t/implementing-kebab-case-to-camelcase-in-nix/47313/3
 
-    Type: kebabToCamel :: string -> string
+    # Type: kebabToCamel :: string -> string
 
-    Example:
+    # Example:
       kebabToCamel "abc-def-g"
       => "abcDefG"
   */
@@ -65,9 +79,9 @@ rec {
   /**
     Mutates the first character of a string using a function, the rest of the string is left untouched.
 
-    Type: mutFirstChar :: (a -> string) -> string -> string
+    # Type: mutFirstChar :: (a -> string) -> string -> string
 
-    Example:
+    # Example:
       mutFirstChar toUpper "abcd"
       => "Abcd"
   */
