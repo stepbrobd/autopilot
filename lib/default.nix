@@ -37,12 +37,12 @@ rec {
     Imports all `.nix` files in a directory with optional arguments.
     This is meant to be used to load functions from a directory, and use the file name as the function name.
 
-    # Type: loadAll :: { dir :: path; transformer :: (a -> string); exclude :: [string]; args :: attrset } -> attrset
+    # Type: loadAll :: { dir :: path; transformer :: (a -> string); excludes :: [string]; args :: attrset } -> attrset
 
     # Example:
       loadAll { dir = ./.
               ; transformer = kebabToCamel
-              ; exclude = [ "default.nix" ]
+              ; excludes = [ "default.nix" ]
               ; args = { lib = final; }
               }
       => { mkModuleArgs = <function>; ... }
@@ -50,7 +50,7 @@ rec {
   loadAll =
     { dir ? ./.
     , transformer ? _: _
-    , exclude ? [ ]
+    , excludes ? [ ]
     , args ? { }
     }: listToAttrs (map
       # file name
@@ -60,7 +60,7 @@ rec {
         # function import
         value = import (dir + "/${fn}") args;
       })
-      (filter (n: !(elem n exclude)) (attrNames (readDir dir))));
+      (filter (n: !(elem n excludes)) (attrNames (readDir dir))));
 
   /**
     Mutates the first character of a string using a function, the rest of the string is left untouched.
