@@ -5,5 +5,5 @@ local: # reference things defined locally
 {
   _module.args.local = local;
 
-  imports = [ ./lib.nix ];
+  imports = local.lib.filesList ./. [ "default.nix" ];
 }
