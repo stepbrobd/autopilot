@@ -10,7 +10,7 @@ let
   inherit (lib) literalExpression mergeAttrsList mkOption types;
   inherit (local.lib) kebabToCamel loadAll;
 
-  cfg = config.autopilot;
+  cfg = config.autopilot.lib;
 in
 {
   options.autopilot.lib = {
@@ -63,12 +63,12 @@ in
     };
   };
 
-  config.flake.lib = cfg.lib.extender (final: prev: mergeAttrsList (
-    cfg.lib.extensions ++ [
+  config.flake.lib = cfg.extender (final: prev: mergeAttrsList (
+    cfg.extensions ++ [
       (loadAll {
-        dir = cfg.lib.path;
+        dir = cfg.path;
         transformer = kebabToCamel;
-        excludes = cfg.lib.excludes;
+        excludes = cfg.excludes;
         args = { lib = final; };
       })
     ]
