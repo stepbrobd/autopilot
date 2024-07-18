@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, ... }:
 
 let
   inherit (builtins) readDir;
@@ -20,6 +20,7 @@ rec {
   /**
     Generates a list of files in a directory, excluding the ones specified in `excludes`.
     This is specifically implemented to only use `builtins` functions to avoid circular dependencies.
+    For all other exported functions, use functions from `lib` by inheriting them in the above `let-in` binding.
 
     # Type: filesList :: path -> [string] -> [string]
 

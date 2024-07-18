@@ -5,10 +5,10 @@
     systems.url = "github:nix-systems/default";
   };
 
-  outputs = { parts, systems, ... } @ inputs: parts.lib.mkFlake
+  outputs = { nixpkgs, parts, systems, ... } @ inputs: parts.lib.mkFlake
     { inherit inputs; }
     {
       systems = import systems;
-      imports = [ ./parts ];
+      imports = (import ./lib { inherit (nixpkgs) lib; }).filesList ./parts [ ];
     };
 }
