@@ -7,7 +7,7 @@
 
 let
   inherit (builtins) toPath;
-  inherit (lib) mergeAttrsList mkOption types;
+  inherit (lib) literalExpression mergeAttrsList mkOption types;
   inherit (local.lib) kebabToCamel loadAll;
 
   cfg = config.autopilot;
@@ -17,7 +17,7 @@ in
     name = mkOption {
       type = types.str;
       default = "lib";
-      example = "lib";
+      example = literalExpression ''"lib"'';
       description = ''
         The name of the flake attribute.
       '';
@@ -25,8 +25,8 @@ in
 
     path = mkOption {
       type = types.path;
-      default = toPath "${self}/lib/.";
-      example = ../lib;
+      default = toPath "${self.outPath}/lib/."; # user flake's outPath + "./lib"
+      example = literalExpression ''./lib'';
       description = ''
         The path to all library functions to be auto-loaded.
       '';
@@ -35,34 +35,35 @@ in
     excludes = mkOption {
       type = with types; listOf str;
       default = [ ];
-      example = [ "private.nix" ];
+      example = literalExpression ''[ "default.nix" ]'';
       description = ''
-        A list of functions to exclude from the auto-loading.
-        You should put the file names here.
+        A list of files to exclude from the auto-loading.
+        You should put filename with extension **inside** the `path` directory if you want to exclude them.
       '';
     };
 
-    base = mkOption {
-      type = with types; attrsOf unspecified;
-      default = local.inputs.nixpkgs.lib;
-      example = lib;
+    extender = mkOption {
+      type = types.raw;
+      default = local.inputs.nixpkgs.lib.extend;
+      example = literalExpression ''nixpkgs.lib.extend'';
       description = ''
-        Any attrset that has the function `extend` defined.
-        Usually, the `nixpkgs.lib` should be passed here.
+        A function that extends the base library.
+        Usually, the `nixpkgs.lib.extend` function is used.
       '';
     };
 
     extensions = mkOption {
-      type = with types; listOf (attrsOf unspecified);
+      type = with types; listOf (lazyAttrsOf raw);
       default = [ ];
-      example = [{ addOne = x: x + 1; }];
+      example = literalExpression ''[ { addOne = x: x + 1; } { addTwo = x: x + 2; } ]'';
       description = ''
         A list of library functions that you want to extend the base with.
+        In case of name collisions, the ones defined later will override the previous ones.
       '';
     };
   };
 
-  config.flake.lib = cfg.lib.base.extend (final: prev: mergeAttrsList (
+  config.flake.lib = cfg.lib.extender (final: prev: mergeAttrsList (
     cfg.lib.extensions ++ [
       (loadAll {
         dir = cfg.lib.path;
