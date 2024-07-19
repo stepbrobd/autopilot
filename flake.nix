@@ -137,6 +137,26 @@
               finalModule = {
                 flake.lib = userLib;
 
+                # customize flake-parts per-system nixpkgs instances
+                # autopilot.nixpkgs = {
+                #   config = { ... }; # nixpkgs config
+                #   overlays = [ ... ]; # nixpkgs overlays
+                #   instances = [
+                #     { name = "pkgs"; value = args.inputs.nixpkgs; };
+                #     { name = "unstable"; value = args.inputs.unstable; };
+                # ];
+                # };
+                perSystem = { system, ... }: {
+                  _module.args = listToAttrs (
+                    map
+                      (attr: {
+                        inherit (attr) name;
+                        value = import attr.value { inherit system; inherit (args.autopilot.nixpkgs) config overlays; };
+                      })
+                      args.autopilot.nixpkgs.instances
+                  );
+                };
+
                 # user defined flake-part module
                 imports = [ module ]
                   # load user flake-parts
