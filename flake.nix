@@ -1,4 +1,6 @@
 {
+  description = "@stepbrobd: flake parts with autoloading";
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     parts.url = "github:hercules-ci/flake-parts";
