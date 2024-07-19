@@ -110,6 +110,75 @@ Type: [String]
 Example:
 `autopilot.parts.excludes = [ "do-not-use-me-or-you-will-be-fired.nix" ];`
 
+## Example
+
+Multi-directory flake:
+
+```nix
+# ./flake.nix
+
+{
+    inputs = {
+        nixpkgs.url = "github:nixos/nixpkgs/release-24.05";
+        unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+
+        parts.url = "github:hercules-ci/flake-parts";
+        parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+
+        systems.url = "github:nix-systems/default";
+
+        autopilot.url = "github:stepbrobd/autopilot";
+        autopilot.inputs.nixpkgs.follows = "nixpkgs";
+        autopilot.inputs.parts.follows = "parts";
+        autopilot.inputs.systems.follows = "systems";
+    };
+
+    outputs = inputs: inputs.autopilot.lib.mkFlake
+    {
+        inherit inputs;
+
+        autopilot = {
+            lib = {
+                path = ./lib;
+                excludes = [ ];
+                extender = inputs.nixpkgs.lib;
+                extensions = with inputs; [ autopilot.lib parts.lib ];
+            };
+
+            nixpkgs = {
+                config = { allowUnfree = true; };
+                overlays = [ ];
+                instances = [
+                    { name = "pkgs"; value = inputs.nixpkgs; }
+                    { name = "unstable"; value = inputs.unstable; }
+                ];
+            };
+
+            parts = { path = ./parts; excludes = [ ]; };
+        };
+    }
+    { systems = import inputs.systems; };
+}
+```
+
+```nix
+# ./lib/add-one.nix # will be made available as `lib.addOne`
+
+{ lib }:
+
+x: x + 1
+```
+
+```nix
+# ./parts/formatter.nix
+
+{
+    perSystem = { unstable, ... }: {
+        formatter = unstable.nixpkgs-fmt;
+    };
+}
+```
+
 ## License
 
 All contents inside this repository, excluding submodules, are licensed under
