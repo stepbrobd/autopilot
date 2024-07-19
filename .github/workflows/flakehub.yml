@@ -1,0 +1,32 @@
+name: "FlakeHub"
+
+on:
+  push:
+    tags:
+      - "v?[0-9]+.[0-9]+.[0-9]+*"
+
+jobs:
+  FlakeHub:
+    runs-on: "ubuntu-latest"
+
+    permissions:
+      id-token: "write"
+      contents: "read"
+
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+        with:
+          ref: "${{ (inputs.tag != null) && format('refs/tags/{0}', inputs.tag) || '' }}"
+
+      - name: "Nix"
+        uses: "determinatesystems/nix-installer-action@main"
+
+      - name: "Check"
+        uses: "determinatesystems/flake-checker-action@main"
+
+      - name: "FlakeHub"
+        uses: "determinatesystems/flakehub-push@main"
+        with:
+          visibility: "public"
+          tag: "${{ inputs.tag }}"
