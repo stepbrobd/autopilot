@@ -22,12 +22,15 @@
             listToAttrs
             map
             readDir
+            removeAttrs
             substring
             ;
 
           inherit (lib)
             concatMapStrings
             evalFlakeModule
+            mergeAttrsList
+            recursiveUpdate
             removeSuffix
             splitString
             toLower
@@ -102,10 +105,49 @@
               mkFlake { inherit inputs; } { system = [ "x86_64-linux" ]; }
               => { ... }
           */
-          mkFlake = # TODO
-            args:
-            modules:
-            (evalFlakeModule args modules).config.flake;
+          mkFlake = args: module:
+            let
+              # load `lib` first
+              # autopilot.lib = {
+              #   path = ./lib;
+              #   excludes = [ ... ];
+              #   extender = args.inputs.nixpkgs.lib;
+              #   extensions = [ ... ];
+              # };
+              finalLib = args.autopilot.lib.extender.extend (final: prev: mergeAttrsList (
+                args.autopilot.lib.extensions ++ [
+                  (loadAll {
+                    dir = args.autopilot.lib.path;
+                    transformer = kebabToCamel;
+                    excludes = args.autopilot.lib.excludes;
+                    args = { lib = final; };
+                  })
+                ]
+              ));
+
+              userLib = removeAttrs
+                finalLib
+                (
+                  (attrNames (mergeAttrsList args.autopilot.lib.extensions)) ++ (attrNames args.autopilot.lib.extender)
+                );
+
+              # inject `lib` to flake-parts `evalModules`'s `specialArgs`
+              finalArgs = removeAttrs (recursiveUpdate args { specialArgs.lib = finalLib; }) [ "autopilot" ];
+
+              finalModule = {
+                flake.lib = userLib;
+
+                # user defined flake-part module
+                imports = [ module ]
+                  # load user flake-parts
+                  # autopilot.parts = {
+                  #   path = ./parts;
+                  #   excludes = [ ... ];
+                  # };
+                  ++ filesList args.autopilot.parts.path args.autopilot.parts.excludes;
+              };
+            in
+            (evalFlakeModule finalArgs finalModule).config.flake;
 
           /**
             Mutates the first character of a string using a function, the rest of the string is left untouched.
