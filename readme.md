@@ -55,7 +55,36 @@ Example:
 
 ## Setting Multiple `nixpkgs` Instances
 
+This option enables users to set one or more `nixpkgs` instances with config and
+overlays. Instances provided in `autopilot.nixpkgs.instances` will inherit
+`config` and `overlays`.
+
 ### Options
+
+#### `autopilot.nixpkgs.config`
+
+Must be a valid `nixpkgs` config.
+
+Type: AttrSet
+
+Example: `autopilot.nixpkgs.config = { allowUnfree = true; };`
+
+#### `autopilot.nixpkgs.overlays`
+
+Must be a list of valid `nixpkgs` overlays.
+
+Type: [(AttrSet -> AttrSet -> AttrSet)]
+
+Example: `autopilot.nixpkgs.overlays = [ (final: prev: { hi = prev.hello; }) ];`
+
+#### `autopilot.nixpkgs.instances`
+
+Instances of `nixpkgs` that will be made available to `perSystem`
+configurations.
+
+Type: [AttrSet]
+
+Example:`autopilot.nixpkgs.instances = [ { name = "pkgs"; value = inputs.nixpkgs; } ];`
 
 ## Module Auto-loading
 
