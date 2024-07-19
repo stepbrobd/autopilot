@@ -31,7 +31,8 @@ Files in `autopilot.lib.path` that should be ignored.
 
 Type: [String]
 
-Example: `excludes = [ "do-not-use-me-or-you-will-be-fired.nix" ];`
+Example:
+`autopilot.lib.excludes = [ "do-not-use-me-or-you-will-be-fired.nix" ];`
 
 #### `autopilot.lib.extender`
 
@@ -88,7 +89,26 @@ Example:`autopilot.nixpkgs.instances = [ { name = "pkgs"; value = inputs.nixpkgs
 
 ## Module Auto-loading
 
+Automatically import all files (flake-part) modules in a directory.
+
 ### Options
+
+#### `autopilot.parts.path`
+
+The directory Autopilot will load `.nix` files from.
+
+Type: Path
+
+Example: `autopilot.lib.parts = ./parts;`
+
+#### `autopilot.parts.excludes`
+
+Files in `autopilot.parts.path` that should be ignored.
+
+Type: [String]
+
+Example:
+`autopilot.parts.excludes = [ "do-not-use-me-or-you-will-be-fired.nix" ];`
 
 ## License
 
