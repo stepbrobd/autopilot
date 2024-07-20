@@ -31,6 +31,7 @@
           inherit (lib)
             concatMapStrings
             evalFlakeModule
+            makeExtensible
             mergeAttrsList
             recursiveUpdate
             removeSuffix
@@ -39,7 +40,7 @@
             toUpper
             ;
         in
-        rec {
+        makeExtensible (_: rec {
           /**
             Generates a list of files in a directory, excluding the ones specified in `excludes`.
 
@@ -129,15 +130,15 @@
 
               userLib = removeAttrs
                 finalLib
-                (
-                  (attrNames (mergeAttrsList args.autopilot.lib.extensions)) ++ (attrNames args.autopilot.lib.extender)
-                );
+                ((attrNames (mergeAttrsList args.autopilot.lib.extensions))
+                  ++
+                  (attrNames args.autopilot.lib.extender));
 
               # inject `lib` to flake-parts `evalModules`'s `specialArgs`
               finalArgs = removeAttrs (recursiveUpdate args { specialArgs.lib = finalLib; }) [ "autopilot" ];
 
               finalModule = {
-                flake.lib = userLib;
+                flake.lib = makeExtensible (_: userLib);
 
                 # customize flake-parts per-system nixpkgs instances
                 # autopilot.nixpkgs = {
@@ -146,7 +147,7 @@
                 #   instances = [
                 #     { name = "pkgs"; value = args.inputs.nixpkgs; };
                 #     { name = "unstable"; value = args.inputs.unstable; };
-                # ];
+                #   ];
                 # };
                 perSystem = { system, ... }: {
                   _module.args = listToAttrs (
@@ -186,7 +187,7 @@
               rest = substring 1 (-1) s;
             in
             first + rest;
-        };
+        });
     })
       formatter
       lib
