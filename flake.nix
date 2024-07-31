@@ -2,7 +2,7 @@
   description = "@stepbrobd: flake parts with autoloading";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable-small";
     parts.url = "github:hercules-ci/flake-parts";
     systems.url = "github:nix-systems/default";
   };
@@ -29,10 +29,13 @@
             ;
 
           inherit (lib)
+            attrByPath
             concatMapStrings
             evalFlakeModule
             makeExtensible
             mergeAttrsList
+            mkIf
+            optionals
             recursiveUpdate
             removeSuffix
             splitString
@@ -110,6 +113,33 @@
           */
           mkFlake = args: module:
             let
+              cfg = recursiveUpdate
+                # default config
+                {
+                  lib = {
+                    enable = if (attrByPath [ "autopilot" "lib" "path" ] null args) == null then false else true;
+                    path = null; # a sensible default without infinite recursion?
+                    excludes = [ ];
+                    extender = args.inputs.nixpkgs.lib;
+                    extensions = [ ];
+                  };
+
+                  nixpkgs = {
+                    enable = true;
+                    config = { };
+                    overlays = [ ];
+                    instances = [{ name = "pkgs"; value = args.inputs.nixpkgs; }];
+                  };
+
+                  parts = {
+                    enable = if (attrByPath [ "autopilot" "parts" "path" ] null args) == null then false else true;
+                    path = null; # a sensible default without infinite recursion?
+                    excludes = [ ];
+                  };
+                }
+                # user config
+                args.autopilot;
+
               # load `lib` first
               # autopilot.lib = {
               #   path = ./lib;
@@ -117,25 +147,32 @@
               #   extender = args.inputs.nixpkgs.lib;
               #   extensions = [ ... ];
               # };
-              finalLib = args.autopilot.lib.extender.extend (final: prev: mergeAttrsList (
-                args.autopilot.lib.extensions ++ [
-                  (loadAll {
-                    dir = args.autopilot.lib.path;
-                    transformer = kebabToCamel;
-                    excludes = args.autopilot.lib.excludes;
-                    args = { lib = final; };
-                  })
-                ]
-              ));
+              finalLib =
+                if cfg.lib.enable then
+                  cfg.lib.extender.extend
+                    (final: prev: mergeAttrsList (
+                      cfg.lib.extensions ++ [
+                        (loadAll {
+                          dir = cfg.lib.path;
+                          transformer = kebabToCamel;
+                          excludes = cfg.lib.excludes;
+                          args = { lib = final; };
+                        })
+                      ]
+                    ))
+                else { };
 
-              userLib = removeAttrs
-                finalLib
-                ((attrNames (mergeAttrsList args.autopilot.lib.extensions))
-                  ++
-                  (attrNames args.autopilot.lib.extender));
+              userLib =
+                if cfg.lib.enable then
+                  removeAttrs
+                    finalLib
+                    ((attrNames (mergeAttrsList cfg.lib.extensions))
+                      ++
+                      (attrNames cfg.lib.extender))
+                else { };
 
               # inject `lib` to flake-parts `evalModules`'s `specialArgs`
-              finalArgs = removeAttrs (recursiveUpdate args { specialArgs.lib = finalLib; }) [ "autopilot" ];
+              finalArgs = removeAttrs (recursiveUpdate args (if cfg.lib.enable then { specialArgs.lib = finalLib; } else { })) [ "autopilot" ];
 
               finalModule = {
                 flake.lib = makeExtensible (_: userLib);
@@ -149,14 +186,14 @@
                 #     { name = "unstable"; value = args.inputs.unstable; };
                 #   ];
                 # };
-                perSystem = { system, ... }: {
+                perSystem = { system, ... }: mkIf cfg.nixpkgs.enable {
                   _module.args = listToAttrs (
                     map
                       (attr: {
                         inherit (attr) name;
-                        value = import attr.value { inherit system; inherit (args.autopilot.nixpkgs) config overlays; };
+                        value = import attr.value { inherit system; inherit (cfg.nixpkgs) config overlays; };
                       })
-                      args.autopilot.nixpkgs.instances
+                      cfg.nixpkgs.instances
                   );
                 };
 
@@ -167,7 +204,7 @@
                   #   path = ./parts;
                   #   excludes = [ ... ];
                   # };
-                  ++ filesList args.autopilot.parts.path args.autopilot.parts.excludes;
+                  ++ optionals cfg.parts.enable (filesList cfg.parts.path cfg.parts.excludes);
               };
             in
             (evalFlakeModule finalArgs finalModule).config.flake;
