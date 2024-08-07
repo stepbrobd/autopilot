@@ -77,7 +77,7 @@
             Imports all `.nix` files in a directory with optional arguments.
             This is meant to be used to load functions from a directory, and use the file name as the function name.
 
-            # Type: loadAll :: { dir :: Path; transformer :: (a -> String); excludes :: [String]; args :: AttrSet } -> AttrSet
+            # Type: loadAll :: { dir :: Path; importer :: (Path -> ?); transformer :: (a -> String); excludes :: [String]; args :: AttrSet } -> AttrSet
 
             # Example:
               loadAll { dir = ./.
@@ -89,6 +89,7 @@
           */
           loadAll =
             { dir ? ./.
+            , importer ? import
             , transformer ? _: _
             , excludes ? [ ]
             , args ? { }
@@ -98,7 +99,7 @@
                 # name transformation (e.g. "mk-module-args" -> "mkModuleArgs")
                 name = transformer (removeSuffix ".nix" fn);
                 # function import
-                value = import (dir + "/${fn}") args;
+                value = importer (dir + "/${fn}") args;
               })
               (filter (n: !(elem n excludes)) (attrNames (readDir dir))));
 
