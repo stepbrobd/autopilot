@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable-small";
     parts.url = "github:hercules-ci/flake-parts";
+    parts.inputs.nixpkgs-lib.follows = "nixpkgs";
     systems.url = "github:nix-systems/default";
   };
 
@@ -15,30 +16,26 @@
 
       flake.lib =
         let
-          lib = nixpkgs.lib // parts.lib;
-
-          inherit (builtins)
-            attrNames
-            elem
-            filter
-            listToAttrs
-            map
-            readDir
-            removeAttrs
-            substring
-            ;
-
+          lib = builtins // nixpkgs.lib // parts.lib;
           inherit (lib)
+            attrNames
             attrByPath
             concatMapStrings
+            elem
             evalFlakeModule
+            filter
+            listToAttrs
             makeExtensible
+            map
             mergeAttrsList
             mkIf
             optionals
+            readDir
             recursiveUpdate
+            removeAttrs
             removeSuffix
             splitString
+            substring
             toLower
             toUpper
             ;
