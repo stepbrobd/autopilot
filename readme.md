@@ -92,7 +92,7 @@ configurations.
 
 Type: [AttrSet]
 
-Example:`autopilot.nixpkgs.instances = [ { name = "pkgs"; value = inputs.nixpkgs; } ];`
+Example:`autopilot.nixpkgs.instances = { pkgs = inputs.nixpkgs; unstable = inputs.unstable; };`
 
 ## Module Auto-loading
 

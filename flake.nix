@@ -18,8 +18,8 @@
         let
           lib = builtins // nixpkgs.lib // parts.lib;
           inherit (lib)
-            attrNames
             attrByPath
+            attrNames
             concatMapStrings
             elem
             evalFlakeModule
@@ -27,6 +27,7 @@
             listToAttrs
             makeExtensible
             map
+            mapAttrsToList
             mergeAttrsList
             mkIf
             optionals
@@ -126,7 +127,7 @@
                     enable = true;
                     config = { };
                     overlays = [ ];
-                    instances = [{ name = "pkgs"; value = args.inputs.nixpkgs; }];
+                    instances = { pkgs = args.inputs.nixpkgs; };
                   };
 
                   parts = {
@@ -190,17 +191,17 @@
                 # autopilot.nixpkgs = {
                 #   config = { ... }; # nixpkgs config
                 #   overlays = [ ... ]; # nixpkgs overlays
-                #   instances = [
-                #     { name = "pkgs"; value = args.inputs.nixpkgs; };
-                #     { name = "unstable"; value = args.inputs.unstable; };
-                #   ];
+                #   instances = {
+                #     pkgs = args.inputs.nixpkgs;
+                #     unstable = args.inputs.unstable;
+                #   };
                 # };
                 perSystem = { system, ... }: mkIf cfg.nixpkgs.enable {
                   _module.args = listToAttrs (
-                    map
-                      (attr: {
-                        inherit (attr) name;
-                        value = import attr.value { inherit system; inherit (cfg.nixpkgs) config overlays; };
+                    mapAttrsToList
+                      (pkgsName: pkgsInstance: {
+                        name = pkgsName;
+                        value = import pkgsInstance { inherit system; inherit (cfg.nixpkgs) config overlays; };
                       })
                       cfg.nixpkgs.instances
                   );
