@@ -18,12 +18,14 @@
         let
           lib = builtins // nixpkgs.lib // parts.lib;
           inherit (lib)
+            assertMsg
             attrByPath
             attrNames
             concatMapStrings
             elem
             evalFlakeModule
             filter
+            intersectLists
             listToAttrs
             makeExtensible
             map
@@ -147,13 +149,13 @@
               #   extensions = [ ... ];
               # };
               finalLib =
-                if cfg.lib.enable && (lib.assertMsg (cfg.lib.extender ? extend) "the extender provide does not have a `extend` function") then
+                if cfg.lib.enable && (assertMsg (cfg.lib.extender ? extend) "the extender provide does not have a `extend` function") then
                   cfg.lib.extender.extend
                     (final: prev: mergeAttrsList (
                       # builtins
                       [
-                        (lib.removeAttrs builtins (
-                          lib.intersectLists (lib.attrNames cfg.lib.extender) (lib.attrNames builtins)
+                        (removeAttrs builtins (
+                          intersectLists (attrNames cfg.lib.extender) (attrNames builtins)
                         ))
                       ]
                       ++
