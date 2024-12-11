@@ -7,6 +7,13 @@ more with [flake-parts](https://flake.parts).
 
 ## Library Auto-loading
 
+> [!Important]
+> I dislike the fact that some built-in functions are not exported
+> to `nixpkgs.lib`, so I've made sure to export all `builtins` to user's `lib`
+> when it gets evaluated. If there are name collisions: functions in user
+> specified directory > functions in user specified extension list > functions
+> in extending `nixpkgs.lib` > `builtins`
+
 Autopilot evaluates user defined library before letting flake-parts takeover.
 User defined library (including extensions) will be passed as `specialArgs` to
 flake-parts, i.e. `lib` will be made available to flake-parts modules and

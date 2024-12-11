@@ -146,10 +146,21 @@
               #   extensions = [ ... ];
               # };
               finalLib =
-                if cfg.lib.enable then
+                if cfg.lib.enable && (lib.assertMsg (cfg.lib.extender ? extend) "the extender provide does not have a `extend` function") then
                   cfg.lib.extender.extend
                     (final: prev: mergeAttrsList (
-                      cfg.lib.extensions ++ [
+                      # builtins
+                      [
+                        (lib.removeAttrs builtins (
+                          lib.intersectLists (lib.attrNames cfg.lib.extender) (lib.attrNames builtins)
+                        ))
+                      ]
+                      ++
+                      # user defined extension list
+                      cfg.lib.extensions
+                      ++
+                      # user provide functions in their project directory
+                      [
                         (loadAll {
                           dir = cfg.lib.path;
                           transformer = kebabToCamel;
