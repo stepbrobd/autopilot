@@ -125,46 +125,43 @@ Multi-directory flake:
 # ./flake.nix
 
 {
-    inputs = {
-        nixpkgs.url = "github:nixos/nixpkgs/release-24.05";
-        unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/release-24.05";
+    unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    parts.url = "github:hercules-ci/flake-parts";
+    parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+    systems.url = "github:nix-systems/default";
+    autopilot.url = "github:stepbrobd/autopilot";
+    autopilot.inputs.nixpkgs.follows = "nixpkgs";
+    autopilot.inputs.parts.follows = "parts";
+    autopilot.inputs.systems.follows = "systems";
+  };
 
-        parts.url = "github:hercules-ci/flake-parts";
-        parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+  outputs = inputs: inputs.autopilot.lib.mkFlake
+  {
+    inherit inputs;
 
-        systems.url = "github:nix-systems/default";
+    autopilot = {
+      lib = {
+        path = ./lib;
+        excludes = [ ];
+        extender = inputs.nixpkgs.lib;
+        extensions = with inputs; [ autopilot.lib parts.lib ];
+      };
 
-        autopilot.url = "github:stepbrobd/autopilot";
-        autopilot.inputs.nixpkgs.follows = "nixpkgs";
-        autopilot.inputs.parts.follows = "parts";
-        autopilot.inputs.systems.follows = "systems";
+      nixpkgs = {
+        config = { allowUnfree = true; };
+        overlays = [ ];
+        instances = [
+          { pkgs = inputs.nixpkgs; }
+          { unstable = inputs.unstable; }
+        ];
+      };
+
+      parts = { path = ./parts; excludes = [ ]; };
     };
-
-    outputs = inputs: inputs.autopilot.lib.mkFlake
-    {
-        inherit inputs;
-
-        autopilot = {
-            lib = {
-                path = ./lib;
-                excludes = [ ];
-                extender = inputs.nixpkgs.lib;
-                extensions = with inputs; [ autopilot.lib parts.lib ];
-            };
-
-            nixpkgs = {
-                config = { allowUnfree = true; };
-                overlays = [ ];
-                instances = [
-                    { name = "pkgs"; value = inputs.nixpkgs; }
-                    { name = "unstable"; value = inputs.unstable; }
-                ];
-            };
-
-            parts = { path = ./parts; excludes = [ ]; };
-        };
-    }
-    { systems = import inputs.systems; };
+  }
+  { systems = import inputs.systems; };
 }
 ```
 
@@ -180,9 +177,9 @@ x: x + 1
 # ./parts/formatter.nix
 
 {
-    perSystem = { unstable, ... }: {
-        formatter = unstable.nixpkgs-fmt;
-    };
+  perSystem = { unstable, ... }: {
+    formatter = unstable.nixpkgs-fmt;
+  };
 }
 ```
 
