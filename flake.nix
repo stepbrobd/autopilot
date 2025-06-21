@@ -25,6 +25,7 @@
             elem
             evalFlakeModule
             filter
+            hasSuffix
             intersectLists
             listToAttrs
             makeExtensible
@@ -101,7 +102,7 @@
                 # function import
                 value = importer (dir + "/${fn}") args;
               })
-              (filter (n: !(elem n excludes)) (attrNames (readDir dir))));
+              (filter (n: (!(elem n excludes)) && hasSuffix ".nix" n) (attrNames (readDir dir))));
 
           /**
             Eval Autopilot before invoking flake-parts' `evalFlakeModule`.
@@ -180,7 +181,9 @@
                     finalLib
                     ((attrNames (mergeAttrsList cfg.lib.extensions))
                       ++
-                      (attrNames cfg.lib.extender))
+                      (attrNames cfg.lib.extender
+                        ++
+                        attrNames builtins))
                 else { };
 
               # inject `lib` to flake-parts `evalModules`'s `specialArgs`
