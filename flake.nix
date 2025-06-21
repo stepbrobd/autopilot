@@ -102,7 +102,7 @@
                 # function import
                 value = importer (dir + "/${fn}") args;
               })
-              (filter (n: (!(elem n excludes)) && hasSuffix ".nix" n) (attrNames (readDir dir))));
+              (filter (n: !(elem n excludes)) (attrNames (readDir dir))));
 
           /**
             Eval Autopilot before invoking flake-parts' `evalFlakeModule`.
