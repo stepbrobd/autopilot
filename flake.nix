@@ -25,7 +25,6 @@
             elem
             evalFlakeModule
             filter
-            hasSuffix
             intersectLists
             listToAttrs
             makeExtensible
@@ -221,8 +220,13 @@
                   # };
                   ++ optionals cfg.parts.enable (filesList cfg.parts.path cfg.parts.excludes);
               };
+
+              # eval result
+              inherit ((evalFlakeModule finalArgs finalModule).config) flake;
             in
-            (evalFlakeModule finalArgs finalModule).config.flake;
+            if flake.debug.debug
+            then { inherit (args) autopilot; } // flake
+            else flake;
 
           /**
             Mutates the first character of a string using a function, the rest of the string is left untouched.
