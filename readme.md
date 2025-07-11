@@ -19,6 +19,10 @@ User defined library (including extensions) will be passed as `specialArgs` to
 flake-parts, i.e. `lib` will be made available to flake-parts modules and
 `perSystem` configurations.
 
+> [!Note]
+> `autopilot` follows flake-parts' `debug` flag. If set to `true`, user
+> provided arguments will be added to the flake outputs.
+
 ### Options
 
 #### `autopilot.lib.path`
