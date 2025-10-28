@@ -224,7 +224,7 @@
               # eval result
               inherit ((evalFlakeModule finalArgs finalModule).config) flake;
             in
-            if flake.debug.debug
+            if flake.debug.debug or false
             then { inherit (args) autopilot; } // flake
             else flake;
 
