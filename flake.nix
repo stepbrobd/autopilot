@@ -8,7 +8,7 @@
     systems.url = "github:nix-systems/default";
   };
 
-  outputs = { nixpkgs, parts, systems, ... } @ inputs: {
+  outputs = { self, nixpkgs, parts, systems } @ inputs: {
     inherit (parts.lib.mkFlake { inherit inputs; } {
       systems = import systems;
 
@@ -121,7 +121,7 @@
                     enable = if (attrByPath [ "autopilot" "lib" "path" ] null args) == null then false else true;
                     path = null; # a sensible default without infinite recursion?
                     excludes = [ ];
-                    extender = args.inputs.nixpkgs.lib;
+                    extender = args.inputs.nixpkgs.lib or self.inputs.nixpkgs.lib;
                     extensions = [ ];
                   };
 
@@ -129,7 +129,7 @@
                     enable = true;
                     config = { };
                     overlays = [ ];
-                    instances = { pkgs = args.inputs.nixpkgs; };
+                    instances = { pkgs = args.inputs.nixpkgs or self.inputs.nixpkgs; };
                   };
 
                   parts = {
