@@ -7,21 +7,29 @@ more with [flake-parts](https://flake.parts).
 
 ## Library Auto-loading
 
+<!-- deno-fmt-ignore -->
 > [!Important]
-> I dislike the fact that some built-in functions are not exported
-> to `nixpkgs.lib`, so I've made sure to export all `builtins` to user's `lib`
-> when it gets evaluated. If there are name collisions: functions in user
-> specified directory > functions in user specified extension list > functions
-> in extending `nixpkgs.lib` > `builtins`
+> I dislike the fact that some built-in functions are not exported to
+> `nixpkgs.lib`, so I've made sure to export all `builtins` to user's `lib` when
+> it gets evaluated. If there are name collisions: functions in user specified
+> directory > functions in user specified extension list > functions in
+> extending `nixpkgs.lib` > `builtins`
 
 Autopilot evaluates user defined library before letting flake-parts takeover.
 User defined library (including extensions) will be passed as `specialArgs` to
 flake-parts, i.e. `lib` will be made available to flake-parts modules and
 `perSystem` configurations.
 
+<!-- deno-fmt-ignore -->
 > [!Note]
-> `autopilot` follows flake-parts' `debug` flag. If set to `true`, user
-> provided arguments will be added to the flake outputs.
+> `autopilot` follows flake-parts' `debug` flag. If set to `true`, user provided
+> arguments will be added to the flake outputs.
+
+<!-- deno-fmt-ignore -->
+> [!Note]
+> The `autopilot` attrset is optional and is checked against declared options
+> with `evalModules`. An unknown option name or a value of the wrong type fails
+> evaluation with an error naming the option.
 
 ### Options
 
@@ -48,7 +56,10 @@ Example:
 #### `autopilot.lib.extender`
 
 An attrset contains the function `extend`. Usually `nixpkgs.lib`, or any
-function set called with `nixpkgs.lib.makeExtensible`.
+function set called with `nixpkgs.lib.makeExtensible`. Defaults to the calling
+flake's `inputs.nixpkgs.lib`. When the calling flake has no input named
+`nixpkgs`, the default is autopilot's own pinned `nixpkgs.lib`, which may be a
+different revision than the caller expects.
 
 Type: AttrSet
 
@@ -92,9 +103,12 @@ Example: `autopilot.nixpkgs.overlays = [ (final: prev: { hi = prev.hello; }) ];`
 #### `autopilot.nixpkgs.instances`
 
 Instances of `nixpkgs` that will be made available to `perSystem`
-configurations.
+configurations. The `pkgs` instance defaults to the calling flake's
+`inputs.nixpkgs` (autopilot's own pinned `nixpkgs` when that input is absent).
+User defined instances merge with this default, so adding `unstable` keeps the
+default `pkgs`.
 
-Type: [AttrSet]
+Type: AttrSet
 
 Example:`autopilot.nixpkgs.instances = { pkgs = inputs.nixpkgs; unstable = inputs.unstable; };`
 
@@ -110,7 +124,7 @@ The directory Autopilot will load `.nix` files from.
 
 Type: Path
 
-Example: `autopilot.lib.parts = ./parts;`
+Example: `autopilot.parts.path = ./parts;`
 
 #### `autopilot.parts.excludes`
 
@@ -141,8 +155,7 @@ Multi-directory flake:
     autopilot.inputs.systems.follows = "systems";
   };
 
-  outputs = inputs: inputs.autopilot.lib.mkFlake
-  {
+  outputs = inputs: inputs.autopilot.lib.mkFlake {
     inherit inputs;
 
     autopilot = {
@@ -156,10 +169,10 @@ Multi-directory flake:
       nixpkgs = {
         config = { allowUnfree = true; };
         overlays = [ ];
-        instances = [
-          { pkgs = inputs.nixpkgs; }
-          { unstable = inputs.unstable; }
-        ];
+        instances = {
+          pkgs = inputs.nixpkgs;
+          unstable = inputs.unstable;
+        };
       };
 
       parts = { path = ./parts; excludes = [ ]; };
