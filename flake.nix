@@ -19,19 +19,21 @@
           lib = builtins // nixpkgs.lib // parts.lib;
           inherit (lib)
             assertMsg
-            attrByPath
             attrNames
             concatMapStrings
             elem
             evalFlakeModule
+            evalModules
             filter
             intersectLists
             listToAttrs
             makeExtensible
             map
-            mapAttrsToList
+            mapAttrs
             mergeAttrsList
+            mkDefault
             mkIf
+            mkOption
             optionals
             readDir
             recursiveUpdate
@@ -41,13 +43,15 @@
             substring
             toLower
             toUpper
+            types
             ;
         in
         makeExtensible (_: rec {
           /**
-            Generates a list of files in a directory, excluding the ones specified in `excludes`.
+            Generates a list of paths in a directory, excluding the names specified in `excludes`.
+            Directory entries are included, importing such a path loads its `default.nix`.
 
-            # Type: filesList :: Path -> [String] -> [String]
+            # Type: filesList :: Path -> [String] -> [Path]
 
             # Example:
               filesList ./. [ "default.nix" ]
@@ -76,8 +80,9 @@
           /**
             Imports all `.nix` files in a directory with optional arguments.
             This is meant to be used to load functions from a directory, and use the file name as the function name.
+            The default importer is `import`, so every loaded file must be a function that accepts `args`.
 
-            # Type: loadAll :: { dir :: Path; importer :: (Path -> ?); transformer :: (a -> String); excludes :: [String]; args :: AttrSet } -> AttrSet
+            # Type: loadAll :: { dir :: Path; importer :: (Path -> AttrSet -> a); transformer :: (String -> String); excludes :: [String]; args :: AttrSet } -> AttrSet
 
             # Example:
               loadAll { dir = ./.
@@ -114,32 +119,48 @@
           */
           mkFlake = args: module:
             let
-              cfg = recursiveUpdate
-                # default config
-                {
-                  lib = {
-                    enable = if (attrByPath [ "autopilot" "lib" "path" ] null args) == null then false else true;
-                    path = null; # a sensible default without infinite recursion?
-                    excludes = [ ];
-                    extender = args.inputs.nixpkgs.lib or self.inputs.nixpkgs.lib;
-                    extensions = [ ];
-                  };
+              # user config is checked against declared options
+              # an unknown option name or a wrong type fails eval instead of being silently carried
+              cfg = (evalModules {
+                prefix = [ "autopilot" ];
+                modules = [
+                  ({ config, ... }: {
+                    options = {
+                      lib = {
+                        enable = mkOption { type = types.bool; };
+                        path = mkOption { type = types.nullOr types.path; default = null; };
+                        excludes = mkOption { type = types.listOf types.str; default = [ ]; };
+                        # falls back to autopilot's own nixpkgs when the caller has no `nixpkgs` input
+                        extender = mkOption { type = types.raw; default = args.inputs.nixpkgs.lib or self.inputs.nixpkgs.lib; };
+                        extensions = mkOption { type = types.listOf types.raw; default = [ ]; };
+                      };
 
-                  nixpkgs = {
-                    enable = true;
-                    config = { };
-                    overlays = [ ];
-                    instances = { pkgs = args.inputs.nixpkgs or self.inputs.nixpkgs; };
-                  };
+                      nixpkgs = {
+                        enable = mkOption { type = types.bool; default = true; };
+                        config = mkOption { type = types.raw; default = { }; };
+                        overlays = mkOption { type = types.listOf types.raw; default = [ ]; };
+                        instances = mkOption { type = types.attrsOf types.raw; default = { }; };
+                      };
 
-                  parts = {
-                    enable = if (attrByPath [ "autopilot" "parts" "path" ] null args) == null then false else true;
-                    path = null; # a sensible default without infinite recursion?
-                    excludes = [ ];
-                  };
-                }
-                # user config
-                args.autopilot;
+                      parts = {
+                        enable = mkOption { type = types.bool; };
+                        path = mkOption { type = types.nullOr types.path; default = null; };
+                        excludes = mkOption { type = types.listOf types.str; default = [ ]; };
+                      };
+                    };
+
+                    config = {
+                      lib.enable = mkDefault (config.lib.path != null);
+                      parts.enable = mkDefault (config.parts.path != null);
+                      # a definition instead of an option default so user provided instances merge with it
+                      # falls back to autopilot's own nixpkgs when the caller has no `nixpkgs` input
+                      nixpkgs.instances.pkgs = mkDefault (args.inputs.nixpkgs or self.inputs.nixpkgs);
+                    };
+                  })
+                  # user config
+                  (args.autopilot or { })
+                ];
+              }).config;
 
               # load `lib` first
               # autopilot.lib = {
@@ -148,41 +169,31 @@
               #   extender = args.inputs.nixpkgs.lib;
               #   extensions = [ ... ];
               # };
+              mergedExtensions = mergeAttrsList cfg.lib.extensions;
+
               finalLib =
-                if cfg.lib.enable && (assertMsg (cfg.lib.extender ? extend) "the extender provide does not have a `extend` function") then
+                if cfg.lib.enable && (assertMsg (cfg.lib.extender ? extend) "the extender does not provide an `extend` function") then
                   cfg.lib.extender.extend
-                    (final: prev: mergeAttrsList (
+                    (final: prev: mergeAttrsList [
                       # builtins
-                      [
-                        (removeAttrs builtins (
-                          intersectLists (attrNames cfg.lib.extender) (attrNames builtins)
-                        ))
-                      ]
-                      ++
+                      (removeAttrs builtins (
+                        intersectLists (attrNames cfg.lib.extender) (attrNames builtins)
+                      ))
                       # user defined extension list
-                      cfg.lib.extensions
-                      ++
-                      # user provide functions in their project directory
-                      [
-                        (loadAll {
-                          dir = cfg.lib.path;
-                          transformer = kebabToCamel;
-                          excludes = cfg.lib.excludes;
-                          args = { lib = final; };
-                        })
-                      ]
-                    ))
+                      mergedExtensions
+                      # user provided functions in their project directory
+                      (loadAll {
+                        dir = cfg.lib.path;
+                        transformer = kebabToCamel;
+                        excludes = cfg.lib.excludes;
+                        args = { lib = final; };
+                      })
+                    ])
                 else { };
 
               userLib =
                 if cfg.lib.enable then
-                  removeAttrs
-                    finalLib
-                    ((attrNames (mergeAttrsList cfg.lib.extensions))
-                      ++
-                      (attrNames cfg.lib.extender
-                        ++
-                        attrNames builtins))
+                  removeAttrs finalLib (attrNames mergedExtensions ++ attrNames cfg.lib.extender ++ attrNames builtins)
                 else { };
 
               # inject `lib` to flake-parts `evalModules`'s `specialArgs`
@@ -201,14 +212,9 @@
                 #   };
                 # };
                 perSystem = { system, ... }: mkIf cfg.nixpkgs.enable {
-                  _module.args = listToAttrs (
-                    mapAttrsToList
-                      (pkgsName: pkgsInstance: {
-                        name = pkgsName;
-                        value = import pkgsInstance { inherit system; inherit (cfg.nixpkgs) config overlays; };
-                      })
-                      cfg.nixpkgs.instances
-                  );
+                  _module.args = mapAttrs
+                    (_: pkgsInstance: import pkgsInstance { inherit system; inherit (cfg.nixpkgs) config overlays; })
+                    cfg.nixpkgs.instances;
                 };
 
                 # user defined flake-part module
@@ -225,7 +231,7 @@
               inherit ((evalFlakeModule finalArgs finalModule).config) flake;
             in
             if flake.debug.debug or false
-            then { inherit (args) autopilot; } // flake
+            then { autopilot = args.autopilot or { }; } // flake
             else flake;
 
           /**
